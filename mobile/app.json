@@ -9,13 +9,20 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "android": {},
+    "android": {
+      "package": "com.sandeepa_2004.smartvehicleservice"
+    },
     "web": {
       "favicon": "./assets/Logo2.png"
     },
     "plugins": [
       "expo-asset",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4f2e042d-566f-49d1-93e5-60c1018beb95"
+      }
+    }
   }
 }
