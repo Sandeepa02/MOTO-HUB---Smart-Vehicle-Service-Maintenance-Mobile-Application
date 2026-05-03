@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Smart Vehicle Service & Maintenance Mobile Application
 
 Production-structured full-stack project:
@@ -165,6 +165,4 @@ npm run start
 - Uploaded files are served from `/uploads`
 - For production, use cloud storage (S3/Cloudinary) instead of local disk uploads
 - Add role-based authorization (admin/staff/user) if needed for service-center moderation
-=======
 
->>>>>>> 96d608afada2b000552443e486defd41d43edcc7
