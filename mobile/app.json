@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Smart Vehicle Service",
+    "slug": "smart-vehicle-service",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/Logo.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {},
+    "web": {
+      "favicon": "./assets/Logo2.png"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
+  }
+}
