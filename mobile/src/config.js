@@ -8,4 +8,4 @@ const devHost = Platform.select({
   default: 'localhost'
 });
 
-export const API_BASE_URL = envBaseUrl ?? `http://${devHost}:5000/api`;
+//export const API_BASE_URL = envBaseUrl ?? `http://${devHost}:5000/api`;
