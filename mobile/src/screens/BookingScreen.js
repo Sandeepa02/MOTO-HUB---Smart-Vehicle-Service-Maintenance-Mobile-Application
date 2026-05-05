@@ -73,6 +73,7 @@ export default function BookingScreen({ route, navigation }) {
   const [cancelModal, setCancelModal] = useState({ visible: false, booking: null });
   const [cancelReason, setCancelReason] = useState('');
   const [cancelNote, setCancelNote] = useState('');
+  const [branches, setBranches] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const preselectedCenterId = route?.params?.serviceCenterId || '';
@@ -90,7 +91,8 @@ export default function BookingScreen({ route, navigation }) {
     serviceType: preselectedPackageName,
     bookingDate: '',
     slotLabel: '',
-    notes: ''
+    notes: '',
+    branchId: ''
   });
 
   const getSelectedPackageDetails = () => {
@@ -136,15 +138,20 @@ export default function BookingScreen({ route, navigation }) {
     setBookings(bookingsRes.data);
   };
 
-  const fetchAvailability = async (serviceCenterId, bookingDate) => {
+  const fetchAvailability = async (serviceCenterId, bookingDate, branchIdOptional) => {
     if (!serviceCenterId || !bookingDate) {
       setAvailableSlots([]);
       return;
     }
 
+    const params = { serviceCenterId, bookingDate };
+    if (branchIdOptional) {
+      params.branchId = branchIdOptional;
+    }
+
     const { data } = await api.get('/bookings/availability', {
       ...authHeaders,
-      params: { serviceCenterId, bookingDate }
+      params
     });
 
     setAvailableSlots(data.slots);
@@ -167,6 +174,46 @@ export default function BookingScreen({ route, navigation }) {
   );
 
   useEffect(() => {
+    let cancelled = false;
+    async function loadBranchesForCenter() {
+      if (!form.serviceCenterId) {
+        if (!cancelled) {
+          setBranches([]);
+          setForm((prev) => ({ ...prev, branchId: '' }));
+        }
+        return;
+      }
+      try {
+        const { data } = await api.get(`/service-centers/${form.serviceCenterId}/branches`);
+        if (cancelled) return;
+        const list = Array.isArray(data) ? data : [];
+        setBranches(list);
+        setForm((prev) => {
+          if (!list.length) {
+            return { ...prev, branchId: '' };
+          }
+          if (list.length === 1) {
+            return { ...prev, branchId: list[0]._id };
+          }
+          const stillOk = prev.branchId && list.some((b) => b._id === prev.branchId);
+          return stillOk ? prev : { ...prev, branchId: '' };
+        });
+      } catch (_) {
+        if (!cancelled) {
+          setBranches([]);
+          setForm((prev) => ({ ...prev, branchId: '' }));
+        }
+      }
+    }
+
+    loadBranchesForCenter();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [form.serviceCenterId]);
+
+  useEffect(() => {
     if (form.serviceCenterId && !preselectedPackageId) {
       fetchServices(form.serviceCenterId);
     } else if (preselectedPackageId) {
@@ -181,10 +228,18 @@ export default function BookingScreen({ route, navigation }) {
       return;
     }
 
-    fetchAvailability(form.serviceCenterId, normalizedDate).catch((error) => {
+    const gatedBranchId =
+      branches.length > 0 ? form.branchId : '';
+
+    if (branches.length > 0 && !gatedBranchId) {
+      setAvailableSlots([]);
+      return;
+    }
+
+    fetchAvailability(form.serviceCenterId, normalizedDate, gatedBranchId || undefined).catch((error) => {
       Alert.alert('Error', error?.response?.data?.message || 'Failed loading time slots');
     });
-  }, [form.bookingDate, form.serviceCenterId]);
+  }, [form.bookingDate, form.serviceCenterId, form.branchId, branches.length]);
 
   const onDateChange = (date) => {
     if (!date) {
@@ -237,6 +292,10 @@ export default function BookingScreen({ route, navigation }) {
         Alert.alert('Error', 'Please select a time slot');
         return;
       }
+      if (branches.length > 0 && !form.branchId) {
+        Alert.alert('Error', 'Please select an outlet');
+        return;
+      }
 
       const payload = { ...form, bookingDate: normalizedDate };
       if (editingId) {
@@ -252,7 +311,8 @@ export default function BookingScreen({ route, navigation }) {
         serviceType: '',
         bookingDate: '',
         slotLabel: '',
-        notes: ''
+        notes: '',
+        branchId: ''
       });
       setEditingId(null);
       await fetchData();
@@ -274,7 +334,8 @@ export default function BookingScreen({ route, navigation }) {
       serviceType: item.serviceType,
       bookingDate: item.bookingDate || '',
       slotLabel: item.slotLabel || '',
-      notes: item.notes || ''
+      notes: item.notes || '',
+      branchId: item.branchId?._id ? String(item.branchId._id) : item.branchId ? String(item.branchId) : ''
     });
   };
 
@@ -401,6 +462,37 @@ export default function BookingScreen({ route, navigation }) {
               ))}
             </View>
           </View>
+      ) : null}
+
+      {branches.length > 1 ? (
+        <View style={{ marginBottom: 4 }}>
+          <Text style={styles.label}>Select outlet</Text>
+          <View style={styles.rowWrap}>
+            {branches.map((b) => (
+              <Pressable
+                key={b._id}
+                style={[styles.pill, styles.servicePill, form.branchId === b._id && styles.activePill]}
+                onPress={() => setForm((prev) => ({ ...prev, branchId: b._id, slotLabel: '' }))}
+              >
+                <Text style={[styles.pillText, form.branchId === b._id && styles.activePillText]} numberOfLines={2}>
+                  {b.branchName}
+                </Text>
+                <Text
+                  style={[styles.serviceMetaText, form.branchId === b._id && styles.activePillText]}
+                  numberOfLines={1}
+                >
+                  {b.location}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : branches.length === 1 ? (
+        <View style={styles.branchSingleCard}>
+          <Text style={styles.branchSingleKicker}>Outlet</Text>
+          <Text style={styles.branchSingleTitle}>{branches[0].branchName}</Text>
+          <Text style={styles.branchSingleMeta}>{branches[0].location}</Text>
+        </View>
       ) : null}
 
       <Text style={styles.label}>Select Vehicle</Text>
@@ -557,6 +649,12 @@ export default function BookingScreen({ route, navigation }) {
                   <Text style={styles.cardIcon}>🏪</Text>
                   <Text style={styles.text}>{item.serviceCenterId?.centerName || 'N/A'}</Text>
                 </View>
+                {item.branchId?.branchName ? (
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardIcon}>📍</Text>
+                    <Text style={styles.text}>{item.branchId.branchName}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.cardRow}>
                   <Text style={styles.cardIcon}>📅</Text>
                   <Text style={styles.text}>{item.bookingDate} at {item.slotLabel}</Text>
@@ -757,6 +855,18 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 12
   },
+  branchSingleCard: {
+    backgroundColor: theme.colors.card,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    ...theme.shadow.soft
+  },
+  branchSingleKicker: { fontSize: 11, fontWeight: '800', color: theme.colors.muted, marginBottom: 4 },
+  branchSingleTitle: { fontSize: 15, fontWeight: '800', color: theme.colors.text },
+  branchSingleMeta: { marginTop: 4, fontSize: 13, fontWeight: '600', color: theme.colors.muted },
   notesContainer: {
     backgroundColor: theme.colors.card,
     borderWidth: 1,

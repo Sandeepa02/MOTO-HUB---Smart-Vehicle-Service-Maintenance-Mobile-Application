@@ -1,6 +1,8 @@
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Vehicle = require('../models/Vehicle');
 const ServiceCenter = require('../models/ServiceCenter');
+const ServiceCenterBranch = require('../models/ServiceCenterBranch');
 const ServicePackage = require('../models/ServicePackage');
 const Notification = require('../models/Notification');
 const asyncHandler = require('../utils/asyncHandler');
@@ -15,13 +17,33 @@ const {
 
 const ACTIVE_STATUSES = ['Pending', 'Accepted'];
 
-/** Pending + Accepted for same slot (same-day capacity). */
-const getActiveSlotBookingsCount = async ({ serviceCenterId, bookingDate, slotLabel, excludeBookingId }) => {
+const resolveSlotCapacity = (serviceCenter, branchDoc) => {
+  if (branchDoc && branchDoc.maxBookingsPerSlot != null) {
+    return branchDoc.maxBookingsPerSlot;
+  }
+  return serviceCenter.maxBookingsPerSlot || DEFAULT_SLOT_CAPACITY;
+};
+
+const resolveSlotDurationHours = (serviceCenter, branchDoc) => {
+  if (branchDoc && branchDoc.slotDurationHours != null) {
+    return branchDoc.slotDurationHours;
+  }
+  return serviceCenter.slotDurationHours || 2;
+};
+
+const branchScopeMatcher = (branchId) =>
+  branchId
+    ? { branchId }
+    : { $or: [{ branchId: null }, { branchId: { $exists: false } }] };
+
+/** Pending + Accepted for same slot (same-day capacity), scoped per branch when applicable. */
+const getActiveSlotBookingsCount = async ({ serviceCenterId, branchId, bookingDate, slotLabel, excludeBookingId }) => {
   const query = {
     serviceCenterId,
     bookingDate,
     slotLabel,
-    status: { $in: ACTIVE_STATUSES }
+    status: { $in: ACTIVE_STATUSES },
+    ...branchScopeMatcher(branchId || null)
   };
 
   if (excludeBookingId) {
@@ -31,11 +53,12 @@ const getActiveSlotBookingsCount = async ({ serviceCenterId, bookingDate, slotLa
   return Booking.countDocuments(query);
 };
 
-const getActiveDayBookingsCount = async ({ serviceCenterId, bookingDate, excludeBookingId }) => {
+const getActiveDayBookingsCount = async ({ serviceCenterId, branchId, bookingDate, excludeBookingId }) => {
   const query = {
     serviceCenterId,
     bookingDate,
-    status: { $in: ACTIVE_STATUSES }
+    status: { $in: ACTIVE_STATUSES },
+    ...branchScopeMatcher(branchId || null)
   };
 
   if (excludeBookingId) {
@@ -50,74 +73,112 @@ const populateBookingQuery = (query) =>
     .populate('vehicleId', 'vehicleName vehicleNumber brand model')
     .populate('userId', 'name email')
     .populate('serviceCenterId', 'centerName location contactNumber')
+    .populate('branchId', 'branchName location branchCode district')
     .populate('servicePackageId', 'serviceName price estimatedDuration discountPrice discountValidTill');
 
 const validateBookingPayload = async ({
   userId,
   vehicleId,
   serviceCenterId,
+  branchId: rawBranchId,
   bookingDate,
   slotLabel,
   excludeBookingId
 }) => {
   const dateErr = validateBookingDateString(bookingDate);
   if (dateErr) {
-    return dateErr;
+    return { error: dateErr, branchDoc: null };
   }
 
   if (!vehicleId || !serviceCenterId || !slotLabel) {
-    return 'Vehicle, service center, booking date, and slot are required';
+    return { error: 'Vehicle, service center, booking date, and slot are required', branchDoc: null };
   }
 
   if (!isValidSlotLabel(slotLabel)) {
-    return `Slot must be one of: ${SLOT_LABELS.join(', ')}`;
+    return { error: `Slot must be one of: ${SLOT_LABELS.join(', ')}`, branchDoc: null };
   }
 
   const vehicle = await Vehicle.findOne({ _id: vehicleId, userId });
   if (!vehicle) {
-    return 'Vehicle not found for this user';
+    return { error: 'Vehicle not found for this user', branchDoc: null };
   }
 
   const serviceCenter = await ServiceCenter.findById(serviceCenterId);
   if (!serviceCenter) {
-    return 'Service center not found';
+    return { error: 'Service center not found', branchDoc: null };
   }
 
-  const slotCapacity = serviceCenter.maxBookingsPerSlot || DEFAULT_SLOT_CAPACITY;
+  const branchHint =
+    rawBranchId != null && String(rawBranchId).trim() !== '' ? String(rawBranchId).trim() : null;
+
+  const activeBranchCount = await ServiceCenterBranch.countDocuments({
+    serviceCenterId: serviceCenter._id,
+    isActive: true
+  });
+
+  let branchDoc = null;
+  if (activeBranchCount > 0) {
+    if (!branchHint || !mongoose.Types.ObjectId.isValid(branchHint)) {
+      return { error: 'Please select an outlet branch for this service center', branchDoc: null };
+    }
+    branchDoc = await ServiceCenterBranch.findOne({
+      _id: branchHint,
+      serviceCenterId: serviceCenter._id,
+      isActive: true
+    });
+    if (!branchDoc) {
+      return { error: 'Invalid or inactive branch for this service center', branchDoc: null };
+    }
+  } else if (branchHint) {
+    return { error: 'This service center does not use outlets; remove branch selection', branchDoc: null };
+  }
+
+  const scopeBranchId = branchDoc ? branchDoc._id : null;
+
+  const slotCapacity = resolveSlotCapacity(serviceCenter, branchDoc);
   const activeOnSlot = await getActiveSlotBookingsCount({
     serviceCenterId,
+    branchId: scopeBranchId,
     bookingDate,
     slotLabel,
     excludeBookingId
   });
   if (activeOnSlot >= slotCapacity) {
-    return `This time slot is full (maximum ${slotCapacity} booking(s) per slot). Choose another slot or date.`;
+    return {
+      error: `This time slot is full (maximum ${slotCapacity} booking(s) per slot). Choose another slot or date.`,
+      branchDoc: null
+    };
   }
 
   const dayTotal = await getActiveDayBookingsCount({
     serviceCenterId,
+    branchId: scopeBranchId,
     bookingDate,
     excludeBookingId
   });
   if (dayTotal >= MAX_BOOKINGS_PER_DAY) {
-    return `This date is fully booked (${MAX_BOOKINGS_PER_DAY} bookings allowed per day at this service center). Please choose another date.`;
+    return {
+      error: `This date is fully booked (${MAX_BOOKINGS_PER_DAY} bookings allowed per day at this outlet). Please choose another date.`,
+      branchDoc: null
+    };
   }
 
-  return null;
+  return { error: null, branchDoc };
 };
 
 const createBooking = asyncHandler(async (req, res) => {
-  const { vehicleId, serviceCenterId, servicePackageId, serviceType, bookingDate, slotLabel, notes } = req.body;
+  const { vehicleId, serviceCenterId, servicePackageId, serviceType, bookingDate, slotLabel, notes, branchId } = req.body;
 
   if (!serviceType) {
     res.status(400);
     throw new Error('Service type is required');
   }
 
-  const validationError = await validateBookingPayload({
+  const { error: validationError, branchDoc } = await validateBookingPayload({
     userId: req.user._id,
     vehicleId,
     serviceCenterId,
+    branchId,
     bookingDate,
     slotLabel,
     excludeBookingId: undefined
@@ -145,7 +206,7 @@ const createBooking = asyncHandler(async (req, res) => {
     }
   }
 
-  const booking = await Booking.create({
+  const bookingPayload = {
     userId: req.user._id,
     vehicleId,
     serviceCenterId,
@@ -156,7 +217,13 @@ const createBooking = asyncHandler(async (req, res) => {
     notes: notes || '',
     estimatedCost,
     taxAmount
-  });
+  };
+
+  if (branchDoc?._id) {
+    bookingPayload.branchId = branchDoc._id;
+  }
+
+  const booking = await Booking.create(bookingPayload);
 
   await Notification.create({
     userId: req.user._id,
@@ -205,10 +272,19 @@ const updateBooking = asyncHandler(async (req, res) => {
   const nextBookingDate = req.body.bookingDate || booking.bookingDate;
   const nextSlotLabel = req.body.slotLabel || booking.slotLabel;
 
-  const validationError = await validateBookingPayload({
+  const embeddedBranchRaw = booking.branchId;
+  const embeddedBranch =
+    embeddedBranchRaw && typeof embeddedBranchRaw === 'object' && embeddedBranchRaw._id
+      ? embeddedBranchRaw._id
+      : embeddedBranchRaw;
+  const nextBranchForValidation =
+    req.body.branchId !== undefined ? req.body.branchId : embeddedBranch;
+
+  const { error: validationError, branchDoc } = await validateBookingPayload({
     userId: req.user._id,
     vehicleId: nextVehicleId,
     serviceCenterId: nextServiceCenterId,
+    branchId: nextBranchForValidation,
     bookingDate: nextBookingDate,
     slotLabel: nextSlotLabel,
     excludeBookingId: booking._id
@@ -225,6 +301,8 @@ const updateBooking = asyncHandler(async (req, res) => {
       booking[field] = req.body[field];
     }
   });
+
+  booking.branchId = branchDoc ? branchDoc._id : null;
 
   const updatedBooking = await booking.save();
   res.status(200).json(await populateBookingQuery(Booking.findById(updatedBooking._id)));
@@ -292,12 +370,18 @@ const acceptBooking = asyncHandler(async (req, res) => {
 
   const othersOnSlot = await getActiveSlotBookingsCount({
     serviceCenterId: serviceCenter._id,
+    branchId: booking.branchId || null,
     bookingDate: booking.bookingDate,
     slotLabel: booking.slotLabel,
     excludeBookingId: booking._id
   });
 
-  const slotCapacity = serviceCenter.maxBookingsPerSlot || DEFAULT_SLOT_CAPACITY;
+  let branchLean = null;
+  if (booking.branchId) {
+    branchLean = await ServiceCenterBranch.findById(booking.branchId).lean();
+  }
+
+  const slotCapacity = resolveSlotCapacity(serviceCenter, branchLean);
   if (othersOnSlot >= slotCapacity) {
     res.status(400);
     throw new Error(`This slot is full (maximum ${slotCapacity} active booking(s) per slot).`);
@@ -311,12 +395,14 @@ const acceptBooking = asyncHandler(async (req, res) => {
 });
 
 const getAvailability = asyncHandler(async (req, res) => {
-  const { serviceCenterId, bookingDate } = req.query;
+  const { serviceCenterId, bookingDate, branchId } = req.query;
 
   if (!serviceCenterId || !bookingDate) {
     res.status(400);
     throw new Error('Service center and booking date are required');
   }
+
+  const branchHint = typeof branchId === 'string' && branchId.trim() ? branchId.trim() : '';
 
   const dateErr = validateBookingDateString(bookingDate);
   if (dateErr) {
@@ -330,18 +416,46 @@ const getAvailability = asyncHandler(async (req, res) => {
     throw new Error('Service center not found');
   }
 
+  const activeBranchCount = await ServiceCenterBranch.countDocuments({
+    serviceCenterId: serviceCenter._id,
+    isActive: true
+  });
+
+  let branchDoc = null;
+  if (activeBranchCount > 0) {
+    if (!branchHint || !mongoose.Types.ObjectId.isValid(branchHint)) {
+      res.status(400);
+      throw new Error('Branch is required for this service center');
+    }
+    branchDoc = await ServiceCenterBranch.findOne({
+      _id: branchHint,
+      serviceCenterId: serviceCenter._id,
+      isActive: true
+    });
+    if (!branchDoc) {
+      res.status(404);
+      throw new Error('Branch not found');
+    }
+  } else if (branchHint) {
+    res.status(400);
+    throw new Error('This service center does not list outlets yet; omit branchId');
+  }
+
+  const scopeBranchId = branchDoc ? branchDoc._id : null;
+
   const activeBookings = await Booking.find({
     serviceCenterId,
     bookingDate,
-    status: { $in: ACTIVE_STATUSES }
+    status: { $in: ACTIVE_STATUSES },
+    ...branchScopeMatcher(scopeBranchId)
   }).select('slotLabel');
 
-  const counts = activeBookings.reduce((acc, booking) => {
-    acc[booking.slotLabel] = (acc[booking.slotLabel] || 0) + 1;
+  const counts = activeBookings.reduce((acc, b) => {
+    acc[b.slotLabel] = (acc[b.slotLabel] || 0) + 1;
     return acc;
   }, {});
 
-  const slotCapacity = serviceCenter.maxBookingsPerSlot || DEFAULT_SLOT_CAPACITY;
+  const slotCapacity = resolveSlotCapacity(serviceCenter, branchDoc);
   const bookingsOnDate = activeBookings.length;
   const slots = SLOT_LABELS.map((slotLabel) => ({
     slotLabel,
@@ -353,7 +467,8 @@ const getAvailability = asyncHandler(async (req, res) => {
   res.status(200).json({
     bookingDate,
     serviceCenterId,
-    slotDurationHours: serviceCenter.slotDurationHours || 2,
+    branchId: branchDoc ? String(branchDoc._id) : null,
+    slotDurationHours: resolveSlotDurationHours(serviceCenter, branchDoc),
     maxBookingsPerSlot: slotCapacity,
     maxBookingsPerDay: MAX_BOOKINGS_PER_DAY,
     bookingsOnDate,
