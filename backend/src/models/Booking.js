@@ -25,6 +25,11 @@ const bookingSchema = new mongoose.Schema(
       ref: 'ServiceCenter',
       required: true
     },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ServiceCenterBranch',
+      default: null
+    },
     servicePackageId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'ServicePackage'
@@ -84,6 +89,7 @@ const bookingSchema = new mongoose.Schema(
 );
 
 bookingSchema.index({ serviceCenterId: 1, bookingDate: 1, slotLabel: 1, status: 1 });
+bookingSchema.index({ serviceCenterId: 1, branchId: 1, bookingDate: 1, slotLabel: 1, status: 1 });
 bookingSchema.index({ userId: 1, status: 1 });
 bookingSchema.index({ vehicleId: 1 });
 

@@ -9,6 +9,8 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import ServiceCenterBookingsScreen from '../screens/ServiceCenterBookingsScreen';
 import MaintenanceScreen from '../screens/MaintenanceScreen';
 import ManageServicesScreen from '../screens/ManageServicesScreen';
+import ServiceCenterBranchesScreen from '../screens/ServiceCenterBranchesScreen';
+import ManageBranchScreen from '../screens/ManageBranchScreen';
 import ServiceCentersScreen from '../screens/ServiceCentersScreen';
 import ServiceCenterReviewsScreen from '../screens/ServiceCenterReviewsScreen';
 import ServiceCenterPaymentsScreen from '../screens/ServiceCenterPaymentsScreen';
@@ -24,6 +26,12 @@ const HomeStack = () => (
     <Stack.Screen name="ServiceCenterBookings" component={ServiceCenterBookingsScreen} options={{ title: 'Incoming Bookings' }} />
     <Stack.Screen name="Maintenance" component={MaintenanceScreen} options={{ title: 'Maintenance Records' }} />
     <Stack.Screen name="ManageServices" component={ManageServicesScreen} options={{ title: 'Manage Services' }} />
+    <Stack.Screen
+      name="ServiceCenterBranches"
+      component={ServiceCenterBranchesScreen}
+      options={{ title: 'Branches / Outlets' }}
+    />
+    <Stack.Screen name="ManageBranch" component={ManageBranchScreen} options={{ title: 'Outlet' }} />
     <Stack.Screen name="ServiceCenterComplaints" component={ServiceCenterComplaintsScreen} options={{ title: 'Customer Complaints' }} />
     <Stack.Screen name="RespondComplaint" component={RespondComplaintScreen} options={{ title: 'Respond to Complaint' }} />
   </Stack.Navigator>

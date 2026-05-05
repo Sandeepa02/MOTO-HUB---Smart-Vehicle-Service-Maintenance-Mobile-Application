@@ -9,17 +9,21 @@ export default function ServiceCenterDetailsScreen({ navigation, route }) {
   const [center, setCenter] = useState(null);
   const [services, setServices] = useState([]);
 
+  const [branches, setBranches] = useState([]);
+
   const fetchCenter = async () => {
     if (!serviceCenterId) {
       throw new Error('Missing service center id');
     }
 
-    const [centerRes, servicesRes] = await Promise.all([
+    const [centerRes, servicesRes, branchesRes] = await Promise.all([
       api.get(`/service-centers/${serviceCenterId}`),
-      api.get(`/service-packages?serviceCenterId=${serviceCenterId}`)
+      api.get(`/service-packages?serviceCenterId=${serviceCenterId}`),
+      api.get(`/service-centers/${serviceCenterId}/branches`)
     ]);
     setCenter(centerRes.data);
     setServices(servicesRes.data);
+    setBranches(Array.isArray(branchesRes.data) ? branchesRes.data : []);
   };
 
   useFocusEffect(
@@ -42,6 +46,17 @@ export default function ServiceCenterDetailsScreen({ navigation, route }) {
       <Text style={styles.title}>{center.centerName}</Text>
       <Text style={styles.meta}>📌: {center.location}</Text>
       <Text style={styles.meta}>☎️: {center.contactNumber}</Text>
+
+        {branches.length ? (
+          <>
+            <Text style={styles.sectionTitle}>Outlets</Text>
+            {branches.map((b) => (
+              <Text key={b._id} style={styles.outletLine}>
+                • {b.branchName} — {b.location}
+              </Text>
+            ))}
+          </>
+        ) : null}
 
         <Text style={styles.sectionTitle}>Services Offered</Text>
         {services.length ? (
@@ -111,6 +126,7 @@ const styles = StyleSheet.create({
     marginTop: 6
   },
   includedItem: { fontSize: 12, color: theme.colors.muted, marginBottom: 2, marginLeft: 6 },
+  outletLine: { fontSize: 13, color: theme.colors.muted, fontWeight: '700', marginBottom: 4 },
   servicePill: {
     alignSelf: 'flex-start',
     backgroundColor: '#DCEBFF',

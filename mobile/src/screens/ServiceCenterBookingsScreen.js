@@ -118,6 +118,12 @@ export default function ServiceCenterBookingsScreen({ navigation }) {
                   <Text style={styles.cardIcon}>🏍️</Text>
                   <Text style={styles.text}>{item.vehicleId?.vehicleName || 'Vehicle'}</Text>
                 </View>
+                {item.branchId?.branchName ? (
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardIcon}>📍</Text>
+                    <Text style={styles.text}>{item.branchId.branchName}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.cardRow}>
                   <Text style={styles.cardIcon}>📅</Text>
                   <Text style={styles.text}>{item.bookingDate} at {item.slotLabel}</Text>

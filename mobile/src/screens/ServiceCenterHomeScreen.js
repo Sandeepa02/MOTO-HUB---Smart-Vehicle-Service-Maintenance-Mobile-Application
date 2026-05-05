@@ -9,6 +9,7 @@ import ListItem from '../components/ListItem';
 
 const actions = [
   { title: 'Incoming Bookings', subtitle: 'Accept and manage bookings', target: 'ServiceCenterBookings', icon: 'clipboard-outline' },
+  { title: 'Branches / outlets', subtitle: 'Add Maharagama, Kadawatha, etc.', target: 'ServiceCenterBranches', icon: 'location-outline' },
   { title: 'Maintenance Records', subtitle: 'Add and update records', target: 'Maintenance', icon: 'build-outline' },
   { title: 'Manage Services', subtitle: 'Edit service packages', target: 'ManageServices', icon: 'construct-outline' },
   { title: 'Customer Complaints', subtitle: 'View and respond to complaints', target: 'ServiceCenterComplaints', icon: 'chatbubble-ellipses-outline' }
@@ -161,7 +162,7 @@ export default function ServiceCenterHomeScreen({ navigation }) {
               key={b._id}
               icon="calendar-outline"
               title={`${b.serviceType || 'Service'} | ${b.bookingDate || ''}`}
-              subtitle={`Customer: ${b.userId?.name || 'User'} | Slot: ${b.slotLabel || '-'}`}
+              subtitle={`Customer: ${b.userId?.name || 'User'}${b.branchId?.branchName ? ` | ${b.branchId.branchName}` : ''} | Slot: ${b.slotLabel || '-'}`}
               onPress={() => navigation.navigate('ServiceCenterBookings')}
               showDivider={idx !== upcoming.length - 1}
             />
