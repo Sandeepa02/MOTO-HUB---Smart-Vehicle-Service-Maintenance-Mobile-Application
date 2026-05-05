@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
 
 const CATEGORIES = ['Basic', 'Premium', 'Comprehensive'];
-const VEHICLE_TYPES = ['Motorcycle', 'Scooter', 'Sport Bike', 'Cruiser', 'Electric'];
 
 const CATEGORY_COLORS = {
   Basic: '#3B82F6',
@@ -24,7 +23,6 @@ export default function ManageServicesScreen({ navigation }) {
     price: '',
     category: 'Basic',
     estimatedDuration: '1',
-    vehicleTypes: [],
     discountPrice: '',
     discountValidTill: '',
     isCustomizable: false
@@ -58,7 +56,6 @@ export default function ManageServicesScreen({ navigation }) {
         price: parseFloat(form.price),
         category: form.category,
         estimatedDuration: parseFloat(form.estimatedDuration) || 1,
-        vehicleTypes: form.vehicleTypes,
         discountPrice: form.discountPrice ? parseFloat(form.discountPrice) : undefined,
         discountValidTill: form.discountValidTill || undefined,
         isCustomizable: form.isCustomizable
@@ -76,7 +73,6 @@ export default function ManageServicesScreen({ navigation }) {
         price: '',
         category: 'Basic',
         estimatedDuration: '1',
-        vehicleTypes: [],
         discountPrice: '',
         discountValidTill: '',
         isCustomizable: false
@@ -97,7 +93,6 @@ export default function ManageServicesScreen({ navigation }) {
       price: item.price.toString(),
       category: item.category || 'Basic',
       estimatedDuration: item.estimatedDuration?.toString() || '1',
-      vehicleTypes: item.vehicleTypes || [],
       discountPrice: item.discountPrice?.toString() || '',
       discountValidTill: item.discountValidTill ? item.discountValidTill.split('T')[0] : '',
       isCustomizable: item.isCustomizable || false
@@ -121,21 +116,11 @@ export default function ManageServicesScreen({ navigation }) {
       price: '',
       category: 'Basic',
       estimatedDuration: '1',
-      vehicleTypes: [],
       discountPrice: '',
       discountValidTill: '',
       isCustomizable: false
     });
     setEditingId(null);
-  };
-
-  const toggleVehicleType = (type) => {
-    setForm((prev) => ({
-      ...prev,
-      vehicleTypes: prev.vehicleTypes.includes(type)
-        ? prev.vehicleTypes.filter(t => t !== type)
-        : [...prev.vehicleTypes, type]
-    }));
   };
 
   const formatDuration = (hours) => {
@@ -209,25 +194,6 @@ export default function ManageServicesScreen({ navigation }) {
             keyboardType="decimal-pad"
           />
         </View>
-      </View>
-
-      <Text style={styles.label}>Compatible Vehicle Types</Text>
-      <View style={styles.vehicleTypesRow}>
-        {VEHICLE_TYPES.map((type) => (
-          <Pressable
-            key={type}
-            style={[
-              styles.vehicleTypePill,
-              form.vehicleTypes.includes(type) && styles.vehicleTypePillActive
-            ]}
-            onPress={() => toggleVehicleType(type)}
-          >
-            <Text style={[
-              styles.vehicleTypeText,
-              form.vehicleTypes.includes(type) && styles.vehicleTypeTextActive
-            ]}>{type}</Text>
-          </Pressable>
-        ))}
       </View>
 
       <View style={styles.discountSection}>
@@ -316,12 +282,6 @@ export default function ManageServicesScreen({ navigation }) {
               )}
             </View>
 
-            {item.vehicleTypes && item.vehicleTypes.length > 0 && (
-              <Text style={styles.vehicleTypesText}>
-                🏍️ {item.vehicleTypes.join(', ')}
-              </Text>
-            )}
-            
             {item.includedServices && item.includedServices.length > 0 && (
               <View style={styles.includedServicesContainer}>
                 <Text style={styles.includedTitle}>Included Services:</Text>
@@ -391,22 +351,6 @@ const styles = StyleSheet.create({
 
   rowInputs: { flexDirection: 'row', gap: 10 },
   halfInput: { flex: 1 },
-
-  vehicleTypesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  vehicleTypePill: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border
-  },
-  vehicleTypePillActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary
-  },
-  vehicleTypeText: { fontWeight: '600', color: theme.colors.muted, fontSize: 12 },
-  vehicleTypeTextActive: { color: '#fff' },
 
   discountSection: {
     backgroundColor: theme.colors.bg2,
@@ -481,8 +425,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', gap: 12, marginBottom: 6 },
   metaText: { fontSize: 13, color: theme.colors.muted, fontWeight: '600' },
   customizableBadge: { fontSize: 12, color: theme.colors.primary, fontWeight: '600' },
-  vehicleTypesText: { fontSize: 12, color: theme.colors.muted, marginBottom: 8 },
-  
+
   includedServicesContainer: { 
     backgroundColor: theme.colors.bg, 
     padding: 10, 

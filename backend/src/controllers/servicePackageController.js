@@ -3,17 +3,14 @@ const ServiceCenter = require('../models/ServiceCenter');
 const asyncHandler = require('../utils/asyncHandler');
 
 const getServicePackages = asyncHandler(async (req, res) => {
-  const { serviceCenterId, category, vehicleType } = req.query;
-  
+  const { serviceCenterId, category } = req.query;
+
   const query = {};
   if (serviceCenterId) {
     query.centerId = serviceCenterId;
   }
   if (category && category !== 'All') {
     query.category = category;
-  }
-  if (vehicleType) {
-    query.vehicleTypes = vehicleType;
   }
 
   const packages = await ServicePackage.find(query)
@@ -37,13 +34,12 @@ const getMyServicePackages = asyncHandler(async (req, res) => {
 });
 
 const createServicePackage = asyncHandler(async (req, res) => {
-  const { 
-    serviceName, 
-    includedServices, 
+  const {
+    serviceName,
+    includedServices,
     price,
     category,
     estimatedDuration,
-    vehicleTypes,
     discountPrice,
     discountValidTill,
     isCustomizable
@@ -67,7 +63,6 @@ const createServicePackage = asyncHandler(async (req, res) => {
     price,
     category: category || 'Basic',
     estimatedDuration: estimatedDuration || 1,
-    vehicleTypes: vehicleTypes || [],
     discountPrice,
     discountValidTill,
     isCustomizable: isCustomizable || false
@@ -94,12 +89,11 @@ const updateServicePackage = asyncHandler(async (req, res) => {
   }
 
   const fields = [
-    'serviceName', 
-    'includedServices', 
+    'serviceName',
+    'includedServices',
     'price',
     'category',
     'estimatedDuration',
-    'vehicleTypes',
     'discountPrice',
     'discountValidTill',
     'isCustomizable'

@@ -17,10 +17,6 @@ const servicePackageSchema = new mongoose.Schema(
       default: 'Basic'
     },
     estimatedDuration: { type: Number, min: 0.5, default: 1 },
-    vehicleTypes: [{
-      type: String,
-      enum: ['Motorcycle', 'Scooter', 'Sport Bike', 'Cruiser', 'Electric']
-    }],
     discountPrice: { type: Number, min: 0 },
     discountValidTill: { type: Date },
     isCustomizable: { type: Boolean, default: false },
@@ -31,6 +27,5 @@ const servicePackageSchema = new mongoose.Schema(
 
 servicePackageSchema.index({ centerId: 1 });
 servicePackageSchema.index({ category: 1 });
-servicePackageSchema.index({ vehicleTypes: 1 });
 
 module.exports = mongoose.model('ServicePackage', servicePackageSchema);

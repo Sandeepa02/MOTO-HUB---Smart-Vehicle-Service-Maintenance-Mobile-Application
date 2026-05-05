@@ -6,12 +6,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import CrossPlatformMap from '../components/CrossPlatformMap';
 import InputField from '../components/InputField';
+import DistrictSelect from '../components/DistrictSelect';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
 import { API_BASE_URL } from '../config';
+import { SRI_LANKA_DISTRICTS } from '../constants/sriLankaDistricts';
 
 const baseUrl = API_BASE_URL.replace(/\/api\/?$/, '');
+
+const districtOptions = SRI_LANKA_DISTRICTS.map((d) => ({ label: d, value: d }));
 
 export default function ServiceCentersScreen({ navigation }) {
   const { authHeaders, refreshSession, user } = useAuth();
@@ -23,6 +27,7 @@ export default function ServiceCentersScreen({ navigation }) {
   const [form, setForm] = useState({
     centerId: '',
     centerName: '',
+    district: '',
     address: '',
     email: user?.email || '',
     telephone: '',
@@ -37,6 +42,7 @@ export default function ServiceCentersScreen({ navigation }) {
     setForm({
       centerId: data.centerId || '',
       centerName: data.centerName || '',
+      district: data.district || '',
       address: data.location || '',
       email: user?.email || '',
       telephone: data.contactNumber || '',
@@ -100,11 +106,17 @@ export default function ServiceCentersScreen({ navigation }) {
 
   const saveCenter = async () => {
     if (submitting) return;
-    
+
+    if (!form.district) {
+      Alert.alert('District required', 'Please select your district.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       const data = new FormData();
       data.append('centerName', form.centerName);
+      data.append('district', form.district || '');
       data.append('location', form.address);
       data.append('contactNumber', form.telephone);
 
@@ -165,6 +177,13 @@ export default function ServiceCentersScreen({ navigation }) {
         value={form.address}
         onChangeText={(address) => setForm((prev) => ({ ...prev, address }))}
         autoCapitalize="sentences"
+      />
+      <DistrictSelect
+        label="District"
+        value={form.district}
+        onChange={(district) => setForm((prev) => ({ ...prev, district }))}
+        placeholder="Select district"
+        options={districtOptions}
       />
       <InputField label="Email" value={form.email} editable={false} keyboardType="email-address" />
       <InputField

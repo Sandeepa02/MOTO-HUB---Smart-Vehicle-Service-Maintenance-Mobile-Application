@@ -1,5 +1,10 @@
 const ServiceCenter = require('../models/ServiceCenter');
 const asyncHandler = require('../utils/asyncHandler');
+const {
+  isValidDistrict,
+  canonicalDistrict,
+  normalizeDistrict
+} = require('../constants/sriLankaDistricts');
 
 const parseServices = (servicesOffered) => {
   if (Array.isArray(servicesOffered)) {
@@ -25,46 +30,23 @@ const parseCoordinates = (latitude, longitude) => {
   return null;
 };
 
-const getServiceCenters = asyncHandler(async (_req, res) => {
-  const serviceCenters = await ServiceCenter.find().sort({ createdAt: -1 });
-  res.status(200).json(serviceCenters);
-});
-
-const getNearbyServiceCenters = asyncHandler(async (req, res) => {
-  const { latitude, longitude, maxDistance = 15000 } = req.query;
-
-  if (!latitude || !longitude) {
-    res.status(400);
-    throw new Error('Latitude and longitude are required');
+const getServiceCenters = asyncHandler(async (req, res) => {
+  const raw = req.query.district;
+  const q = {};
+  if (raw != null && String(raw).trim()) {
+    const d = String(raw).trim();
+    const esc = d.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reExact = new RegExp(`^${esc}$`, 'i');
+    const reSub = new RegExp(esc, 'i');
+    q.$or = [
+      { district: reExact },
+      {
+        $and: [{ $or: [{ district: '' }, { district: { $exists: false } }, { district: null }] }, { location: reSub }]
+      }
+    ];
   }
 
-  const lat = parseFloat(latitude);
-  const lng = parseFloat(longitude);
-
-  if (isNaN(lat) || isNaN(lng)) {
-    res.status(400);
-    throw new Error('Invalid latitude or longitude');
-  }
-
-  const serviceCenters = await ServiceCenter.aggregate([
-    {
-      $geoNear: {
-        near: {
-          type: 'Point',
-          coordinates: [lng, lat]
-        },
-        distanceField: 'distance',
-        maxDistance: parseInt(maxDistance, 10),
-        spherical: true
-      }
-    },
-    {
-      $addFields: {
-        distanceKm: { $round: [{ $divide: ['$distance', 1000] }, 1] }
-      }
-    }
-  ]);
-
+  const serviceCenters = await ServiceCenter.find(q).sort({ createdAt: -1 });
   res.status(200).json(serviceCenters);
 });
 
@@ -93,9 +75,22 @@ const updateMyServiceCenter = asyncHandler(async (req, res) => {
     throw new Error('Service center profile not found');
   }
 
-  const fields = ['centerName', 'location', 'contactNumber'];
+  const fields = ['centerName', 'location', 'contactNumber', 'district'];
   fields.forEach((field) => {
-    if (req.body[field] !== undefined) {
+    if (req.body[field] === undefined) {
+      return;
+    }
+    if (field === 'district') {
+      const d = normalizeDistrict(req.body[field]);
+      if (!d) {
+        serviceCenter.district = '';
+      } else if (!isValidDistrict(d)) {
+        res.status(400);
+        throw new Error('Invalid district');
+      } else {
+        serviceCenter.district = canonicalDistrict(d);
+      }
+    } else {
       serviceCenter[field] = req.body[field];
     }
   });
@@ -123,6 +118,5 @@ module.exports = {
   getServiceCenters,
   getServiceCenterById,
   getMyServiceCenter,
-  updateMyServiceCenter,
-  getNearbyServiceCenters
+  updateMyServiceCenter
 };

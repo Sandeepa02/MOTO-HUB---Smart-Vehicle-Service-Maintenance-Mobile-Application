@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency } from '../formatCurrency';
 import { theme } from '../theme';
 
 export default function FeedbackComplaintsScreen({ navigation, route }) {
@@ -68,7 +69,7 @@ export default function FeedbackComplaintsScreen({ navigation, route }) {
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.label}>Amount Paid</Text>
-          <Text style={[styles.value, styles.amount]}>₹{record.cost || 0}</Text>
+          <Text style={[styles.value, styles.amount]}>{formatCurrency(record.cost)}</Text>
         </View>
       </View>
 
