@@ -15,6 +15,11 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    district: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     email: {
       type: String,
       required: true,

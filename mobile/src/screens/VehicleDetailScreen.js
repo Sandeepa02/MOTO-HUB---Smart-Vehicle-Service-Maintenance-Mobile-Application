@@ -14,6 +14,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { API_BASE_URL } from '../config';
+import { formatCurrency } from '../formatCurrency';
 import { theme } from '../theme';
 
 const formatDate = (date) => {
@@ -23,14 +24,6 @@ const formatDate = (date) => {
     month: 'short',
     year: 'numeric'
   });
-};
-
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(amount || 0);
 };
 
 const getHealthColor = (score) => {

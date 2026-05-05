@@ -8,7 +8,6 @@ import PackageCompareModal from '../components/PackageCompareModal';
 import CustomPackageBuilder from '../components/CustomPackageBuilder';
 
 const CATEGORIES = ['All', 'Basic', 'Premium', 'Comprehensive'];
-const VEHICLE_TYPES = ['Motorcycle', 'Scooter', 'Sport Bike', 'Cruiser', 'Electric'];
 
 const CATEGORY_COLORS = {
   All: theme.colors.primary,
@@ -25,7 +24,6 @@ export default function ServicePackageSelectionScreen({ route, navigation }) {
   const [filteredPackages, setFilteredPackages] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedVehicleType, setSelectedVehicleType] = useState(null);
   const [compareList, setCompareList] = useState([]);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
@@ -35,7 +33,6 @@ export default function ServicePackageSelectionScreen({ route, navigation }) {
       const params = new URLSearchParams();
       if (serviceCenterId) params.append('serviceCenterId', serviceCenterId);
       if (selectedCategory !== 'All') params.append('category', selectedCategory);
-      if (selectedVehicleType) params.append('vehicleType', selectedVehicleType);
 
       const url = `/service-packages${params.toString() ? `?${params.toString()}` : ''}`;
       const { data } = await api.get(url);
@@ -65,7 +62,7 @@ export default function ServicePackageSelectionScreen({ route, navigation }) {
   useFocusEffect(
     useCallback(() => {
       fetchPackages();
-    }, [serviceCenterId, selectedCategory, selectedVehicleType])
+    }, [serviceCenterId, selectedCategory])
   );
 
   const handleSearch = (query) => {
@@ -75,10 +72,6 @@ export default function ServicePackageSelectionScreen({ route, navigation }) {
 
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
-  };
-
-  const handleVehicleTypeChange = (type) => {
-    setSelectedVehicleType(prev => prev === type ? null : type);
   };
 
   const toggleCompare = (pkg) => {
@@ -171,33 +164,6 @@ export default function ServicePackageSelectionScreen({ route, navigation }) {
           ))}
         </ScrollView>
 
-        <View style={styles.vehicleFilterSection}>
-          <Text style={styles.filterLabel}>Filter by vehicle type:</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.vehicleTypeContent}
-          >
-            {VEHICLE_TYPES.map((type) => (
-              <Pressable
-                key={type}
-                style={[
-                  styles.vehicleTypeChip,
-                  selectedVehicleType === type && styles.vehicleTypeChipActive
-                ]}
-                onPress={() => handleVehicleTypeChange(type)}
-              >
-                <Text style={[
-                  styles.vehicleTypeText,
-                  selectedVehicleType === type && styles.vehicleTypeTextActive
-                ]}>
-                  {type}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-
         {hasCustomizablePackages && (
           <Pressable 
             style={styles.customBuilderBtn}
@@ -231,11 +197,7 @@ export default function ServicePackageSelectionScreen({ route, navigation }) {
               <Text style={styles.emptyIcon}>📦</Text>
               <Text style={styles.emptyTitle}>No Packages Found</Text>
               <Text style={styles.emptyText}>
-                {searchQuery 
-                  ? 'Try a different search term'
-                  : selectedVehicleType 
-                    ? `No packages available for ${selectedVehicleType}`
-                    : 'No service packages available'}
+                {searchQuery ? 'Try a different search term' : 'No service packages available'}
               </Text>
             </View>
           }
@@ -330,40 +292,6 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   categoryTabTextActive: {
-    color: '#fff'
-  },
-  vehicleFilterSection: {
-    paddingHorizontal: theme.spacing.lg,
-    marginBottom: 16
-  },
-  filterLabel: {
-    fontSize: 13,
-    color: theme.colors.muted,
-    marginBottom: 8,
-    fontWeight: '600'
-  },
-  vehicleTypeContent: {
-    gap: 8
-  },
-  vehicleTypeChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.card,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginRight: 8
-  },
-  vehicleTypeChipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary
-  },
-  vehicleTypeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: theme.colors.muted
-  },
-  vehicleTypeTextActive: {
     color: '#fff'
   },
   customBuilderBtn: {

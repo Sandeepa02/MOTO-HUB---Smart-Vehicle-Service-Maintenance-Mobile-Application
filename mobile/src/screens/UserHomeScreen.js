@@ -8,8 +8,12 @@ import ListItem from '../components/ListItem';
 
 const actions = [
   { title: 'Book Service', subtitle: 'Schedule maintenance', target: 'ServicePackageSelection', icon: 'calendar' },
-  { title: 'Search Service', subtitle: 'Find service centers', target: 'SearchServiceCenters', icon: 'search' },
-  { title: 'Nearby Centers', subtitle: 'Find centers near you', target: 'NearbyServiceCenters', icon: 'location' }
+  {
+    title: 'Search within District',
+    subtitle: 'Find service centers by district',
+    target: 'SearchServiceCenters',
+    icon: 'map'
+  }
 ];
 
 export default function UserHomeScreen({ navigation }) {

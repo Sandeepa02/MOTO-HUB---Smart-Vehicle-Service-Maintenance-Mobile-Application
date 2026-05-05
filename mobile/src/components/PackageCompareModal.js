@@ -104,19 +104,6 @@ export default function PackageCompareModal({
                   ))}
                 </View>
 
-                <View style={styles.compareRow}>
-                  <View style={styles.labelCell}>
-                    <Text style={styles.labelText}>Vehicle Types</Text>
-                  </View>
-                  {packages.map((pkg) => (
-                    <View key={pkg._id} style={styles.valueCell}>
-                      <Text style={styles.valueText}>
-                        {pkg.vehicleTypes?.length ? pkg.vehicleTypes.join(', ') : 'All types'}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
                 <View style={styles.servicesHeader}>
                   <Text style={styles.servicesHeaderText}>Included Services</Text>
                 </View>

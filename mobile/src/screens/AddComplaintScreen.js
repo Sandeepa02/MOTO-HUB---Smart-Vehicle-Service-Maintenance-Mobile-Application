@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency } from '../formatCurrency';
 import { theme } from '../theme';
 
 const ISSUE_TYPES = [
@@ -96,7 +97,7 @@ export default function AddComplaintScreen({ navigation, route }) {
           {record.serviceCenterId?.centerName} • {record.serviceDate?.slice(0, 10)}
         </Text>
         <Text style={styles.infoSubtext}>
-          {record.vehicleId?.vehicleName} • ₹{record.cost}
+          {record.vehicleId?.vehicleName} • {formatCurrency(record.cost)}
         </Text>
       </View>
 

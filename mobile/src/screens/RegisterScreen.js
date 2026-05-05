@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import InputField from '../components/InputField';
+import DistrictSelect from '../components/DistrictSelect';
 import { useAuth } from '../context/AuthContext';
+import { SRI_LANKA_DISTRICTS } from '../constants/sriLankaDistricts';
 import { theme } from '../theme';
 
 const accountTypes = [
   { label: 'User', value: 'user' },
   { label: 'Service Center', value: 'service-center' }
 ];
+
+const districtOptions = SRI_LANKA_DISTRICTS.map((d) => ({ label: d, value: d }));
 
 export default function RegisterScreen({ navigation }) {
   const { register } = useAuth();
@@ -16,21 +20,38 @@ export default function RegisterScreen({ navigation }) {
     email: '',
     password: '',
     role: 'user',
+    district: '',
     location: '',
     contactNumber: ''
   });
   const [submitting, setSubmitting] = useState(false);
 
   const handleRegister = async () => {
+    if (!form.district) {
+      Alert.alert('District required', 'Please select your district.');
+      return;
+    }
     try {
       setSubmitting(true);
       const payload =
         form.role === 'service-center'
           ? {
-              ...form,
+              name: form.name,
+              email: form.email,
+              password: form.password,
+              role: form.role,
+              district: form.district,
+              location: form.location,
+              contactNumber: form.contactNumber,
               centerName: form.name
             }
-          : form;
+          : {
+              name: form.name,
+              email: form.email,
+              password: form.password,
+              role: form.role,
+              district: form.district
+            };
       const data = await register(payload);
       const userId = data?.publicId ? `User ID: ${data.publicId}` : null;
       const centerId = data?.serviceCenterProfile?.centerId ? `Center ID: ${data.serviceCenterProfile.centerId}` : null;
@@ -87,6 +108,14 @@ export default function RegisterScreen({ navigation }) {
         onChangeText={(password) => setForm((prev) => ({ ...prev, password }))}
         placeholder="Create password"
         secureTextEntry
+      />
+
+      <DistrictSelect
+        label="District"
+        value={form.district}
+        onChange={(district) => setForm((prev) => ({ ...prev, district }))}
+        placeholder="Select district"
+        options={districtOptions}
       />
 
       {form.role === 'service-center' ? (

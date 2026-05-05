@@ -67,14 +67,11 @@ export default function PackageCard({
         <Text style={styles.centerName}>📍 {item.centerId.centerName}</Text>
       )}
 
-      <View style={styles.metaRow}>
-        {item.vehicleTypes && item.vehicleTypes.length > 0 && (
-          <Text style={styles.metaText}>🏍️ {item.vehicleTypes.slice(0, 2).join(', ')}{item.vehicleTypes.length > 2 ? ` +${item.vehicleTypes.length - 2}` : ''}</Text>
-        )}
-        {item.estimatedDuration && (
+      {item.estimatedDuration ? (
+        <View style={styles.metaRow}>
           <Text style={styles.metaText}>⏱️ ~{formatDuration(item.estimatedDuration)}</Text>
-        )}
-      </View>
+        </View>
+      ) : null}
 
       {!compact && item.includedServices && item.includedServices.length > 0 && (
         <View style={styles.servicesContainer}>

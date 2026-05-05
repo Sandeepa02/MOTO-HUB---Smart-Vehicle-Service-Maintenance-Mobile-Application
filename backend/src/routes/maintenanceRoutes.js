@@ -12,12 +12,12 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(protect, authorize('service-center'), upload.single('receiptImage'), addRecord)
+  .post(protect, authorize('service-center'), upload.single('maintenanceImage'), addRecord)
   .get(protect, getRecords);
 
 router
   .route('/:id')
-  .put(protect, authorize('service-center'), upload.single('receiptImage'), updateRecord)
+  .put(protect, authorize('service-center'), upload.single('maintenanceImage'), updateRecord)
   .delete(protect, authorize('service-center'), deleteRecord);
 
 module.exports = router;

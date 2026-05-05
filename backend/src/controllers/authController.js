@@ -3,6 +3,7 @@ const User = require('../models/User');
 const ServiceCenter = require('../models/ServiceCenter');
 const asyncHandler = require('../utils/asyncHandler');
 const generateToken = require('../utils/generateToken');
+const { isValidDistrict, normalizeDistrict, canonicalDistrict } = require('../constants/sriLankaDistricts');
 
 const parseServices = (servicesOffered) => {
   if (Array.isArray(servicesOffered)) {
@@ -26,6 +27,7 @@ const buildAuthResponse = async (user) => {
     name: user.name,
     email: user.email,
     role: user.role,
+    district: user.district || '',
     token: generateToken(user._id)
   };
 
@@ -44,6 +46,7 @@ const registerUser = asyncHandler(async (req, res) => {
     role = 'user',
     centerName: rawCenterName,
     location: rawLocation,
+    district: rawDistrict,
     contactNumber: rawContactNumber,
     servicesOffered
   } = req.body;
@@ -58,6 +61,7 @@ const registerUser = asyncHandler(async (req, res) => {
       : trimmedName;
   const location = typeof rawLocation === 'string' ? rawLocation.trim() : '';
   const contactNumber = typeof rawContactNumber === 'string' ? rawContactNumber.trim() : '';
+  const districtRaw = normalizeDistrict(rawDistrict);
 
   if (!trimmedName || !trimmedEmail || !trimmedPassword) {
     res.status(400);
@@ -76,6 +80,13 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new Error('Location and contact number are required for service centers');
   }
 
+  if (!districtRaw || !isValidDistrict(districtRaw)) {
+    res.status(400);
+    throw new Error('A valid Sri Lankan district is required');
+  }
+
+  const district = canonicalDistrict(districtRaw);
+
   const existingUser = await User.findOne({ email: trimmedEmail.toLowerCase() });
   if (existingUser) {
     res.status(400);
@@ -87,13 +98,15 @@ const registerUser = asyncHandler(async (req, res) => {
     name: trimmedName,
     email: trimmedEmail.toLowerCase(),
     password: hashedPassword,
-    role
+    role,
+    district
   });
 
   if (role === 'service-center') {
     await ServiceCenter.create({
       userId: user._id,
       centerName,
+      district,
       location,
       contactNumber,
       servicesOffered: parseServices(servicesOffered)

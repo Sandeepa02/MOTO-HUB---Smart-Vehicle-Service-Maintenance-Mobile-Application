@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { formatCurrency } from '../formatCurrency';
 import { theme } from '../theme';
 
 const RESOLUTION_TYPES = [
@@ -232,7 +233,10 @@ export default function RespondComplaintScreen({ navigation, route }) {
           <View style={styles.infoRow}>
             <Ionicons name="cash-outline" size={16} color={theme.colors.muted} />
             <Text style={styles.infoText}>
-              Amount Paid: ₹{complaint.maintenanceRecordId?.cost || 'N/A'}
+              Amount Paid:{' '}
+              {complaint.maintenanceRecordId?.cost != null
+                ? formatCurrency(complaint.maintenanceRecordId.cost)
+                : 'N/A'}
             </Text>
           </View>
         </View>

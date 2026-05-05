@@ -19,7 +19,6 @@ import FeedbackComplaintsScreen from '../screens/FeedbackComplaintsScreen';
 import AddComplaintScreen from '../screens/AddComplaintScreen';
 import MyComplaintsScreen from '../screens/MyComplaintsScreen';
 import ComplaintDetailsScreen from '../screens/ComplaintDetailsScreen';
-import NearbyServiceCentersScreen from '../screens/NearbyServiceCentersScreen';
 import UpdateProfileScreen from '../screens/UpdateProfileScreen';
 
 const Tab = createBottomTabNavigator();
@@ -40,8 +39,7 @@ const HomeStack = () => (
     <Stack.Screen name="ComplaintDetails" component={ComplaintDetailsScreen} options={{ title: 'Complaint Details' }} />
     <Stack.Screen name="ServiceCenterDetails" component={ServiceCenterDetailsScreen} options={{ title: 'Service Center' }} />
     <Stack.Screen name="ServicePackageSelection" component={ServicePackageSelectionScreen} options={{ title: 'Select Service' }} />
-    <Stack.Screen name="SearchServiceCenters" component={SearchServiceCentersScreen} options={{ title: 'Search Centers' }} />
-    <Stack.Screen name="NearbyServiceCenters" component={NearbyServiceCentersScreen} options={{ title: 'Nearby Centers' }} />
+    <Stack.Screen name="SearchServiceCenters" component={SearchServiceCentersScreen} options={{ title: 'Search by District' }} />
   </Stack.Navigator>
 );
 

@@ -17,6 +17,7 @@ const serviceCenterSchema = new mongoose.Schema(
       unique: true
     },
     centerName: { type: String, required: true, trim: true },
+    district: { type: String, trim: true, default: '' },
     location: { type: String, required: true, trim: true },
     contactNumber: { type: String, required: true, trim: true },
     servicesOffered: [{ type: String, trim: true }],
