@@ -37,6 +37,6 @@ router
 router
   .route('/:id')
   .put(protect, authorize('user'), updateBooking)
-  .delete(protect, authorize('user'), cancelBooking);
+  .delete(protect, cancelBooking);
 
 module.exports = router;
