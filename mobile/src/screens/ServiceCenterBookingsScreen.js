@@ -56,6 +56,32 @@ export default function ServiceCenterBookingsScreen({ navigation }) {
     setAdditionalNotes('');
   };
 
+  const removeBooking = (item) => {
+    const isPending = item.status === 'Pending';
+    Alert.alert(
+      isPending ? 'Delete booking?' : 'Remove booking?',
+      isPending
+        ? 'This permanently deletes the request. This cannot be undone.'
+        : 'Remove this cancelled booking from your list?',
+      [
+        { text: 'Back', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/bookings/${item._id}`, authHeaders);
+              await fetchData();
+              Alert.alert('Done', 'Booking removed.');
+            } catch (error) {
+              Alert.alert('Error', error?.response?.data?.message || 'Delete failed');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const completeBooking = async () => {
     if (!completeModal.booking) return;
     
@@ -148,6 +174,12 @@ export default function ServiceCenterBookingsScreen({ navigation }) {
                 {item.status === 'Pending' && (
                   <Pressable style={[styles.smallBtn, styles.acceptBtn]} onPress={() => acceptBooking(item._id)}>
                     <Text style={styles.smallBtnText}>Accept Booking</Text>
+                  </Pressable>
+                )}
+
+                {(item.status === 'Pending' || item.status === 'Cancelled') && (
+                  <Pressable style={[styles.smallBtn, styles.deleteBtn]} onPress={() => removeBooking(item)}>
+                    <Text style={styles.smallBtnText}>{item.status === 'Pending' ? 'Delete' : 'Remove'}</Text>
                   </Pressable>
                 )}
 
@@ -310,6 +342,7 @@ const styles = StyleSheet.create({
   acceptBtn: { backgroundColor: theme.colors.primary },
   maintenanceBtn: { backgroundColor: theme.colors.primary2 },
   completeBtn: { backgroundColor: theme.colors.success },
+  deleteBtn: { backgroundColor: theme.colors.danger },
   editBtn: { backgroundColor: '#2B3A67' },
   smallBtnText: { color: '#fff', fontWeight: '900', textAlign: 'center', fontSize: 13 },
   

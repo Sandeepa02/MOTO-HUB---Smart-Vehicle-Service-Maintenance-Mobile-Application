@@ -353,7 +353,7 @@ export default function BookingScreen({ route, navigation }) {
 
   const confirmCancellation = async () => {
     if (!cancelReason) {
-      Alert.alert('Required', 'Please select a reason for cancellation');
+      Alert.alert('Required', 'Please select a reason');
       return;
     }
 
@@ -368,12 +368,35 @@ export default function BookingScreen({ route, navigation }) {
       });
       closeCancelModal();
       await fetchData();
-      Alert.alert('Cancelled', 'Your booking has been cancelled successfully');
+      Alert.alert('Removed', 'Your booking has been deleted.');
     } catch (error) {
-      Alert.alert('Error', error?.response?.data?.message || 'Cancellation failed');
+      Alert.alert('Error', error?.response?.data?.message || 'Delete failed');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const removeCancelledBooking = (booking) => {
+    Alert.alert(
+      'Remove booking',
+      'This will permanently delete this cancelled booking from your history.',
+      [
+        { text: 'Keep', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/bookings/${booking._id}`, authHeaders);
+              await fetchData();
+              Alert.alert('Removed', 'The booking has been deleted.');
+            } catch (error) {
+              Alert.alert('Error', error?.response?.data?.message || 'Could not remove booking');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const downloadInvoice = async (bookingId) => {
@@ -623,6 +646,7 @@ export default function BookingScreen({ route, navigation }) {
         renderItem={({ item }) => {
           const canEdit = item.status === 'Pending';
           const canCancel = item.status !== 'Completed' && item.status !== 'Cancelled';
+          const canRemove = item.status === 'Cancelled';
           const showInvoice = item.status === 'Completed';
 
           return (
@@ -698,7 +722,15 @@ export default function BookingScreen({ route, navigation }) {
                     style={[styles.smallBtn, styles.deleteBtn]}
                     onPress={() => openCancelModal(item)}
                   >
-                    <Text style={styles.smallBtnText}>Cancel</Text>
+                    <Text style={styles.smallBtnText}>Delete</Text>
+                  </Pressable>
+                )}
+                {canRemove && (
+                  <Pressable
+                    style={[styles.smallBtn, styles.deleteBtn]}
+                    onPress={() => removeCancelledBooking(item)}
+                  >
+                    <Text style={styles.smallBtnText}>Remove</Text>
                   </Pressable>
                 )}
                 {showInvoice && (
@@ -723,9 +755,9 @@ export default function BookingScreen({ route, navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Cancel Booking</Text>
+            <Text style={styles.modalTitle}>Delete booking</Text>
             <Text style={styles.modalSubtitle}>
-              Help us improve - why are you cancelling?
+              This permanently removes the booking. Why are you deleting it?
             </Text>
 
             <ScrollView style={styles.reasonsList} showsVerticalScrollIndicator={false}>
@@ -776,7 +808,7 @@ export default function BookingScreen({ route, navigation }) {
                 disabled={isSubmitting}
               >
                 <Text style={styles.modalConfirmText}>
-                  {isSubmitting ? 'Cancelling...' : 'Confirm Cancel'}
+                  {isSubmitting ? 'Deleting...' : 'Delete booking'}
                 </Text>
               </Pressable>
             </View>

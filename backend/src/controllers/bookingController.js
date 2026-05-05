@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Vehicle = require('../models/Vehicle');
@@ -5,6 +7,10 @@ const ServiceCenter = require('../models/ServiceCenter');
 const ServiceCenterBranch = require('../models/ServiceCenterBranch');
 const ServicePackage = require('../models/ServicePackage');
 const Notification = require('../models/Notification');
+const Invoice = require('../models/Invoice');
+const MaintenanceRecord = require('../models/MaintenanceRecord');
+const Review = require('../models/Review');
+const Complaint = require('../models/Complaint');
 const asyncHandler = require('../utils/asyncHandler');
 const { createInvoice, getInvoiceByBooking, calculateCosts, TAX_RATE } = require('../services/invoiceService');
 const {
@@ -75,6 +81,37 @@ const populateBookingQuery = (query) =>
     .populate('serviceCenterId', 'centerName location contactNumber')
     .populate('branchId', 'branchName location branchCode district')
     .populate('servicePackageId', 'serviceName price estimatedDuration discountPrice discountValidTill');
+
+const BACKEND_ROOT = path.resolve(__dirname, '../..');
+
+const safeUnlinkUpload = (webPath) => {
+  if (!webPath || typeof webPath !== 'string') return;
+  const rel = webPath.replace(/^\//, '');
+  const abs = path.join(BACKEND_ROOT, rel);
+  try {
+    if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  } catch {
+    /* ignore missing or locked files */
+  }
+};
+
+/** Permanently remove booking and dependent rows (invoices, records, notifications, etc.). */
+const cascadeDeleteBookingById = async (bookingId) => {
+  const id = bookingId instanceof mongoose.Types.ObjectId ? bookingId : new mongoose.Types.ObjectId(bookingId);
+
+  const invoices = await Invoice.find({ bookingId: id });
+  invoices.forEach((inv) => safeUnlinkUpload(inv.pdfPath));
+
+  const records = await MaintenanceRecord.find({ bookingId: id });
+  records.forEach((r) => safeUnlinkUpload(r.maintenanceImage));
+
+  await Invoice.deleteMany({ bookingId: id });
+  await MaintenanceRecord.deleteMany({ bookingId: id });
+  await Review.deleteMany({ bookingId: id });
+  await Complaint.deleteMany({ bookingId: id });
+  await Notification.deleteMany({ bookingId: id });
+  await Booking.findByIdAndDelete(id);
+};
 
 const validateBookingPayload = async ({
   userId,
@@ -309,7 +346,26 @@ const updateBooking = asyncHandler(async (req, res) => {
 });
 
 const cancelBooking = asyncHandler(async (req, res) => {
-  const booking = await Booking.findOne({ _id: req.params.id, userId: req.user._id });
+  const isUser = req.user.role === 'user';
+  const isServiceCenter = req.user.role === 'service-center';
+
+  if (!isUser && !isServiceCenter) {
+    res.status(403);
+    throw new Error('Not authorized for this action');
+  }
+
+  let booking;
+  if (isUser) {
+    booking = await Booking.findOne({ _id: req.params.id, userId: req.user._id });
+  } else {
+    const serviceCenter = await ServiceCenter.findOne({ userId: req.user._id });
+    if (!serviceCenter) {
+      res.status(404);
+      throw new Error('Service center profile not found');
+    }
+    booking = await Booking.findOne({ _id: req.params.id, serviceCenterId: serviceCenter._id });
+  }
+
   if (!booking) {
     res.status(404);
     throw new Error('Booking not found');
@@ -317,36 +373,26 @@ const cancelBooking = asyncHandler(async (req, res) => {
 
   if (booking.status === 'Completed') {
     res.status(400);
-    throw new Error('Completed bookings cannot be cancelled');
+    throw new Error('Completed bookings cannot be deleted');
   }
 
-  const { cancellationReason, cancellationNote } = req.body;
-
-  booking.status = 'Cancelled';
-  booking.cancelledAt = new Date();
-  booking.cancelledBy = 'user';
-  
-  if (cancellationReason) {
-    booking.cancellationReason = cancellationReason;
+  if (isServiceCenter) {
+    if (booking.status !== 'Pending' && booking.status !== 'Cancelled') {
+      res.status(400);
+      throw new Error('Only pending or cancelled bookings can be removed');
+    }
+  } else if (booking.status !== 'Cancelled') {
+    const { cancellationReason } = req.body || {};
+    if (!cancellationReason) {
+      res.status(400);
+      throw new Error('Please select a reason for cancellation');
+    }
   }
-  if (cancellationNote) {
-    booking.cancellationNote = cancellationNote;
-  }
 
-  await booking.save();
+  await cascadeDeleteBookingById(booking._id);
 
-  await Notification.create({
-    userId: booking.userId,
-    bookingId: booking._id,
-    type: 'booking_cancelled',
-    title: 'Booking Cancelled',
-    body: `Your ${booking.serviceType} service scheduled for ${booking.bookingDate} has been cancelled.`,
-    sentAt: new Date()
-  });
-
-  res.status(200).json({ 
-    message: 'Booking cancelled successfully',
-    booking: await populateBookingQuery(Booking.findById(booking._id))
+  res.status(200).json({
+    message: 'Booking deleted successfully'
   });
 });
 
