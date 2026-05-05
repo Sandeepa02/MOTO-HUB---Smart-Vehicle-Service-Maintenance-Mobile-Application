@@ -23,12 +23,10 @@ const serviceCenterBranchSchema = new mongoose.Schema(
     coordinates: {
       type: {
         type: String,
-        enum: ['Point'],
-        default: 'Point'
+        enum: ['Point']
       },
       coordinates: {
-        type: [Number],
-        default: undefined
+        type: [Number]
       }
     },
     servicesOffered: [{ type: String, trim: true }],
@@ -56,6 +54,19 @@ serviceCenterBranchSchema.index({ serviceCenterId: 1, isActive: 1 });
 serviceCenterBranchSchema.pre('validate', function setBranchCode(next) {
   if (!this.branchCode) {
     this.branchCode = generatePublicId('BRN');
+  }
+  const geo = this.coordinates;
+  if (geo) {
+    const pair = geo.coordinates;
+    if (
+      !Array.isArray(pair) ||
+      pair.length !== 2 ||
+      pair.some((n) => typeof n !== 'number' || Number.isNaN(n))
+    ) {
+      this.set('coordinates', undefined);
+    } else {
+      geo.type = 'Point';
+    }
   }
   next();
 });

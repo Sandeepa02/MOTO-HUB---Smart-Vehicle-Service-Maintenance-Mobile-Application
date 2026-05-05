@@ -27,12 +27,10 @@ const serviceCenterSchema = new mongoose.Schema(
     coordinates: {
       type: {
         type: String,
-        enum: ['Point'],
-        default: 'Point'
+        enum: ['Point']
       },
       coordinates: {
-        type: [Number],
-        default: undefined
+        type: [Number]
       }
     },
     operatingHours: {
@@ -58,6 +56,19 @@ serviceCenterSchema.index({ coordinates: '2dsphere' });
 serviceCenterSchema.pre('validate', function setCenterId(next) {
   if (!this.centerId) {
     this.centerId = generatePublicId('CTR');
+  }
+  const geo = this.coordinates;
+  if (geo) {
+    const pair = geo.coordinates;
+    if (
+      !Array.isArray(pair) ||
+      pair.length !== 2 ||
+      pair.some((n) => typeof n !== 'number' || Number.isNaN(n))
+    ) {
+      this.set('coordinates', undefined);
+    } else {
+      geo.type = 'Point';
+    }
   }
   next();
 });
